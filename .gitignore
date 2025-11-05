@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Pipenv
+Pipfile.lock
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Project-specific
+checkpoint.json
+checkpoint*.json
+report.txt
+report*.txt
+*.log
+error.log
+
+# Video files (this is a verification tool, not storage)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.flv
+
+# Test directories (if you create any)
+test_videos/
+sample_videos/
+creativelive/
+CreativeLive/
+
+# Claude
+.claude/
