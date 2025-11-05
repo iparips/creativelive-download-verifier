@@ -76,3 +76,91 @@ class ReportFormatter:
         lines.append("")
         return lines
 
+    @staticmethod
+    def build_removal_commands(files_to_remove: List[Path], json_report_path: Optional[Path]) -> List[str]:
+        """Build section with rm commands for non-timeout failures."""
+        if not files_to_remove:
+            return []
+
+        lines = [
+            "=" * 80,
+            "RECOMMENDED WORKFLOW FOR FAILED FILES",
+            "=" * 80,
+            f"Found {len(files_to_remove)} file(s) that failed for reasons other than timeout.",
+            "These files are likely corrupted and should be removed and re-downloaded.",
+            "",
+            "STEP 1: Check files manually (Optional)",
+            "Before removing, you can manually verify the corruption by trying to play the files.",
+            "Copy and paste the following commands to open each file:",
+            ""
+        ]
+
+        for file_path in files_to_remove:
+            lines.append(f'open "{file_path}"')
+
+        lines.extend([
+            "",
+            "STEP 2: Remove corrupted files",
+            "After confirming corruption, copy and paste the following commands to remove the files:",
+            ""
+        ])
+
+        for file_path in files_to_remove:
+            lines.append(f'rm "{file_path}"')
+
+        lines.extend([
+            "",
+            "STEP 3: Re-download files",
+            "Run your CreativeLive downloader tool to re-download the missing files.",
+            ""
+        ])
+
+        if json_report_path:
+            lines.extend([
+                "STEP 4: Re-verify the files",
+                "After re-downloading, verify the files again using:",
+                "",
+                f'python src/main.py --reverify "{json_report_path}" -t 600 -o report-reverify.txt',
+                ""
+            ])
+
+        lines.extend(["=" * 80, ""])
+
+        return lines
+
+    @staticmethod
+    def build_dts_warning_section(dts_files: List[Tuple[Path, str]]) -> List[str]:
+        """Build section explaining DTS warnings."""
+        if not dts_files:
+            return []
+
+        lines = [
+            "=" * 80,
+            "DTS TIMESTAMP WARNINGS (Usually Playable)",
+            "=" * 80,
+            f"Found {len(dts_files)} file(s) with timestamp (DTS) warnings.",
+            "",
+            "⚠️  IMPORTANT: These files have encoding quality issues but usually play fine.",
+            "",
+            "What this means:",
+            "- Files have non-monotonic timestamp issues (technical encoding problem)",
+            "- Most video players (QuickTime, VLC, etc.) will play them without issues",
+            "- NOT the same as file corruption - data is intact",
+            "- Often happens with certain encoders or streaming sources",
+            "",
+            "Recommendation:",
+            "1. Try playing these files - they likely work fine",
+            "2. Only re-download if they actually won't play",
+            "3. If you want perfect encoding, you can re-download them",
+            "",
+            "Files with DTS warnings:",
+            ""
+        ]
+
+        for file_path, _ in dts_files:
+            lines.append(f"  - {file_path}")
+
+        lines.extend(["", "=" * 80, ""])
+
+        return lines
+

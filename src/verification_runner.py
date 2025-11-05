@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import List
 from multiprocessing import Pool
+from functools import partial
 
 from video_verifier import VideoVerifier
 from checkpoint_manager import CheckpointManager, VerificationResults
@@ -17,16 +18,18 @@ class VerificationRunner:
         video_files: List[Path],
         num_workers: int,
         checkpoint_file: Path,
-        interrupt_handler
+        interrupt_handler,
+        timeout: int = 300
     ) -> VerificationResults:
         """Run parallel verification of video files."""
+        actual_workers = min(num_workers, len(video_files))
         tracker = ProgressTracker(len(video_files))
         results = {}
 
-        with Pool(processes=num_workers) as pool:
+        with Pool(processes=actual_workers) as pool:
             interrupt_handler.set_pool(pool)
             results = VerificationRunner._process_videos(
-                pool, video_files, tracker, checkpoint_file, interrupt_handler
+                pool, video_files, tracker, checkpoint_file, interrupt_handler, timeout
             )
             interrupt_handler.set_pool(None)
 
@@ -41,15 +44,17 @@ class VerificationRunner:
         video_files: List[Path],
         tracker: ProgressTracker,
         checkpoint_file: Path,
-        interrupt_handler
+        interrupt_handler,
+        timeout: int
     ) -> VerificationResults:
         """Process all videos and track progress."""
         results = {}
+        verify_func = partial(VideoVerifier.verify_video, timeout=timeout)
 
-        for video_path, is_valid, error_msg in pool.imap_unordered(
-            VideoVerifier.verify_video, video_files
+        for video_path, is_valid, error_msg, file_size in pool.imap_unordered(
+            verify_func, video_files
         ):
-            results[video_path] = (is_valid, error_msg)
+            results[video_path] = (is_valid, error_msg, file_size)
             interrupt_handler.results = results
 
             tracker.increment()

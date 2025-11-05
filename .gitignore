@@ -48,8 +48,11 @@ env/
 # Project-specific
 checkpoint.json
 checkpoint*.json
-report.txt
+reports/
+reports/report.txt
 report*.txt
+reports/report.json
+report*.json
 *.log
 error.log
 

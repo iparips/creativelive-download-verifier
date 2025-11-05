@@ -9,31 +9,42 @@ class VideoVerifier:
     """Handles video file verification using ffmpeg."""
 
     @staticmethod
-    def verify_video(video_path: Path) -> Tuple[Path, bool, Optional[str]]:
+    def verify_video(video_path: Path, timeout: int = 300) -> Tuple[Path, bool, Optional[str], int]:
         """
         Verify a single video file using ffmpeg.
 
+        Args:
+            video_path: Path to the video file
+            timeout: Verification timeout in seconds (default: 300)
+
         Returns:
-            Tuple of (video_path, is_valid, error_message)
+            Tuple of (video_path, is_valid, error_message, file_size)
         """
+        if not video_path.exists():
+            return (video_path, False, "File does not exist", 0)
+
+        file_size = video_path.stat().st_size
+
         try:
-            result = VideoVerifier._run_ffmpeg_verification(video_path)
-            return VideoVerifier._parse_verification_result(video_path, result)
+            result = VideoVerifier._run_ffmpeg_verification(video_path, timeout)
+            path, is_valid, error = VideoVerifier._parse_verification_result(video_path, result)
+            return (path, is_valid, error, file_size)
         except subprocess.TimeoutExpired:
-            return (video_path, False, "Verification timed out (>5 minutes)")
+            timeout_msg = f"Verification timed out (>{timeout} seconds)"
+            return (video_path, False, timeout_msg, file_size)
         except FileNotFoundError:
-            return (video_path, False, "ffmpeg not found - please install ffmpeg")
+            return (video_path, False, "ffmpeg not found - please install ffmpeg", file_size)
         except Exception as e:
-            return (video_path, False, f"Unexpected error: {str(e)}")
+            return (video_path, False, f"Unexpected error: {str(e)}", file_size)
 
     @staticmethod
-    def _run_ffmpeg_verification(video_path: Path) -> subprocess.CompletedProcess:
+    def _run_ffmpeg_verification(video_path: Path, timeout: int) -> subprocess.CompletedProcess:
         """Run ffmpeg verification command."""
         return subprocess.run(
             ['ffmpeg', '-v', 'error', '-i', str(video_path), '-f', 'null', '-'],
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=timeout
         )
 
     @staticmethod

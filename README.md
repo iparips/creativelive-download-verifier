@@ -1,12 +1,19 @@
-# CreativeLive Video Integrity Verifier
+# MP4 Video Library Integrity Verifier
 
 ## Purpose
 
-This tool verifies the integrity of MP4 files downloaded from CreativeLive. It checks that:
+This tool verifies the integrity of MP4 files. For example, ones downloaded using CreativeLive downloader tool. It checks that:
 - Video files have no encoding errors
 - Files are not corrupted or incomplete
 
 Use this after downloading large collections (e.g., 1972 files, 500GB+) where manual verification is impractical.
+
+The way I use this tool is
+1. Download my courses from CreativeLive using their downloader tool
+2. Run this verification script over the downloaded CreativeLive directory
+3. Re-verify timed out files from report.json using a larger timeout
+4. Remove files that failed re-verification and re-start CreativeLive downloader to re-download them
+5. Re-verify those files using report.json as input again
 
 ## How to Run It
 
@@ -24,7 +31,7 @@ Use this after downloading large collections (e.g., 1972 files, 500GB+) where ma
 # Verify all MP4 files in directory (uses all CPU cores)
 python src/main.py /path/to/creativelive/directory
 
-# Save detailed report to file
+# Save detailed report to file (creates both .txt and .json)
 python src/main.py /path/to/creativelive/directory -o report.txt
 
 # With checkpoint for resume capability
@@ -35,6 +42,13 @@ python src/main.py /path/to/creativelive/directory -c checkpoint.json --resume
 
 # Specify number of parallel workers (default: CPU count)
 python src/main.py /path/to/creativelive/directory -j 8
+
+# Custom timeout per file (default: 300 seconds)
+python src/main.py /path/to/creativelive/directory -t 600 -o report.txt
+
+# Re-verify only corrupted files from previous report with longer timeout 
+# mp4 files larger than 600Mb may need a larger timeout to verify
+python src/main.py --reverify report.json -t 1200 -o report-retry.txt
 
 # RECOMMENDED for Mac: Prevent sleep during long verification
 caffeinate -i python src/main.py /path/to/creativelive/directory -o report.txt -c checkpoint.json
@@ -47,10 +61,12 @@ python src/main.py --help
 ```
 
 Options:
-- `-o, --output` - Save report to file
+- `-o, --output` - Save report to file (generates both .txt and .json)
 - `-j, --jobs` - Number of parallel workers (default: CPU count)
 - `-c, --checkpoint` - Checkpoint file for resume capability
 - `--resume` - Resume from checkpoint file
+- `-t, --timeout` - Verification timeout in seconds per file (default: 300)
+- `--reverify` - Re-verify files from a previous report.json
 
 ## What It Checks
 
@@ -68,6 +84,9 @@ The tool performs comprehensive integrity verification:
 - **Valid files**: Can be played without issues
 - **Corrupted files**: Should be re-downloaded from CreativeLive
 - **Report**: Shows all corrupted files grouped by course with specific error messages
+- **JSON Report**: When using `-o`, both `.txt` and `.json` reports are generated
+  - JSON includes file paths, sizes, validation status, and errors
+  - Useful for automation and re-verification workflows
 
 ### Example Report
 
@@ -144,7 +163,33 @@ ffmpeg -v error -i "video.mp4" -f null -
 - Checkpoint every 10 files (auto-saves progress)
 - Graceful shutdown on Ctrl+C (saves checkpoint)
 - Resume from checkpoint after interruption
-- 5-minute timeout per file (prevents hanging on severely corrupted files)
+- Configurable timeout per file (default: 5 minutes)
+- JSON report output with file metadata (paths, sizes, errors)
+- Re-verification mode to retry only corrupted files with different timeout
+
+### Re-verification Workflow
+
+For files that timed out during initial verification, you can re-verify them with a longer timeout:
+
+```bash
+# Initial verification with standard 5-minute timeout
+python src/main.py /path/to/videos -o report.txt
+
+# This creates report.txt and report.json
+# If some files timed out, re-verify only those with 20-minute timeout
+python src/main.py --reverify report.json -t 1200 -o report-retry.txt
+
+# This will:
+# 1. Load only corrupted files from report.json
+# 2. Verify them with the new 1200-second (20-minute) timeout
+# 3. Generate new report-retry.txt and report-retry.json
+```
+
+**Use cases:**
+- Very large video files that need more processing time
+- Files with complex encoding that take longer to verify
+- Network-mounted drives with slower I/O
+- Distinguishing between truly corrupted files and slow-to-process files
 
 ### Exit Codes
 
@@ -157,17 +202,18 @@ The codebase follows strict maintainability guidelines (see CLAUDE.md):
 
 ```
 src/
-├── main.py                  # Entry point, orchestrates workflow
-├── cli.py                   # Command-line argument parsing
-├── video_verifier.py        # ffmpeg verification logic
-├── file_scanner.py          # MP4 file discovery
-├── checkpoint_manager.py    # State persistence
-├── report_generator.py      # Report orchestration
-├── report_stats.py          # Statistics calculation
-├── report_formatter.py      # Output formatting
-├── progress_tracker.py      # Progress display
-├── signal_handlers.py       # Interrupt handling
-└── verification_runner.py   # Parallel execution
+├── main.py                   # Entry point, orchestrates workflow
+├── cli.py                    # Command-line argument parsing
+├── video_verifier.py         # ffmpeg verification logic
+├── file_scanner.py           # MP4 file discovery
+├── checkpoint_manager.py     # State persistence
+├── report_generator.py       # Report orchestration
+├── json_report_generator.py  # JSON report generation and loading
+├── report_stats.py           # Statistics calculation
+├── report_formatter.py       # Output formatting
+├── progress_tracker.py       # Progress display
+├── signal_handlers.py        # Interrupt handling
+└── verification_runner.py    # Parallel execution
 ```
 # Credits
 

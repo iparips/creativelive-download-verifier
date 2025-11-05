@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, Tuple, Optional
 
 
-VerificationResults = Dict[Path, Tuple[bool, Optional[str]]]
+VerificationResults = Dict[Path, Tuple[bool, Optional[str], int]]
 
 
 class CheckpointManager:
@@ -15,8 +15,8 @@ class CheckpointManager:
     def save_checkpoint(checkpoint_file: Path, results: VerificationResults) -> None:
         """Save current results to checkpoint file."""
         checkpoint_data = {
-            str(path): (is_valid, error_msg)
-            for path, (is_valid, error_msg) in results.items()
+            str(path): (is_valid, error_msg, file_size)
+            for path, (is_valid, error_msg, file_size) in results.items()
         }
         with open(checkpoint_file, 'w') as f:
             json.dump(checkpoint_data, f)
@@ -30,8 +30,18 @@ class CheckpointManager:
         with open(checkpoint_file, 'r') as f:
             checkpoint_data = json.load(f)
 
-        return {
-            Path(path): (is_valid, error_msg)
-            for path, (is_valid, error_msg) in checkpoint_data.items()
-        }
+        # Handle both old format (2-tuple) and new format (3-tuple)
+        result = {}
+        for path, data in checkpoint_data.items():
+            if len(data) == 2:
+                # Old format: (is_valid, error_msg)
+                is_valid, error_msg = data
+                file_size = 0  # Default size for old checkpoints
+            else:
+                # New format: (is_valid, error_msg, file_size)
+                is_valid, error_msg, file_size = data
+
+            result[Path(path)] = (is_valid, error_msg, file_size)
+
+        return result
 
